@@ -1,11 +1,11 @@
 ---
-page_title: "scaffolding Provider"
+page_title: "sql-sso Provider"
 subcategory: ""
 description: |-
   
 ---
 
-# scaffolding Provider
+# sql-sso Provider
 
 
 
