@@ -37,7 +37,7 @@ func main() {
 	opts := &plugin.ServeOpts{ProviderFunc: provider.New(version)}
 
 	if debugMode {
-		err := plugin.Debug(context.Background(), "registry.terraform.io/jason-johnson/sql-sso", opts)
+		err := plugin.Debug(context.Background(), "registry.terraform.io/jason-johnson/sqlsso", opts)
 		if err != nil {
 			log.Fatal(err.Error())
 		}
