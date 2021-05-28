@@ -8,6 +8,8 @@ import (
 )
 
 func TestAccresourceMsSlqServerAadAccount(t *testing.T) {
+	t.Skip("test not yet implemented, see github issue #3")
+
 	resource.UnitTest(t, resource.TestCase{
 		PreCheck:          func() { testAccPreCheck(t) },
 		ProviderFactories: providerFactories,
