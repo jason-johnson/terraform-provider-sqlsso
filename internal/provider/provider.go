@@ -24,7 +24,7 @@ func New(version string) func() *schema.Provider {
 	return func() *schema.Provider {
 		p := &schema.Provider{
 			ResourcesMap: map[string]*schema.Resource{
-				"sql_sso_mssql_server_aad_account": resourceMsSlqServerAadAccount(),
+				"sqlsso_mssql_server_aad_account": resourceMsSlqServerAadAccount(),
 			},
 		}
 
