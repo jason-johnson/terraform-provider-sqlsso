@@ -18,7 +18,7 @@ This provider is automatically installed when you run `terraform init` on a conf
 ## Quick Starts
 
 - [Using the provider](https://registry.terraform.io/providers/jason-johnson/sqlsso/latest/docs)
-- [Provider development](docs/DEVELOPMENT.md)
+- [Provider development](DEVELOPMENT.md)
 
 ## Documentation
 
