@@ -27,8 +27,7 @@ website/node_modules
 
 website/vendor
 
-Dockerfile
-devcontainer.json
+.devcontainer/
 
 # Test exclusions
 !command/test-fixtures/**/*.tfstate
