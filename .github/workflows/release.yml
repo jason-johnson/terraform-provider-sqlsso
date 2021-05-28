@@ -30,10 +30,6 @@ jobs:
         with:
           go-version: 1.14
       -
-        name: Go Generate
-        run: |
-          make gen
-      -
         name: Import GPG key
         id: import_gpg
         uses: hashicorp/ghaction-import-gpg@v2.1.0
