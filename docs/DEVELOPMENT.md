@@ -14,7 +14,8 @@ If you wish to work on the provider, you'll first need an environment with [Go](
 Clone repository to your preferred location.
 
 *example Dockerfile*
-```FROM golang:1.16-buster
+```
+FROM golang:1.16-buster
 
 RUN apt-get update && \
     apt-get install -y exiftool
