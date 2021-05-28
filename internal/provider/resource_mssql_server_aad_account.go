@@ -20,6 +20,10 @@ var roleMap = map[string]string{"owner": "db_owner", "reader": "db_datareader"}
 func resourceMsSlqServerAadAccount() *schema.Resource {
 
 	return &schema.Resource{
+		Description: "`sqlsso_mssql_server_aad_account` enables AAD authentication for an Azure MS SQL server.\n\n" +
+			"For this to work terraform should be run for the configured **Active Directory Admin** account, not the SQL " +
+			"Server Admin as AD users can only be administered with the AD Admin account. ",
+
 		CreateContext: resourceMsSlqServerAadAccountCreate,
 		ReadContext:   schema.NoopContext,
 		DeleteContext: resourceMsSlqServerAadAccountDelete,
@@ -27,38 +31,38 @@ func resourceMsSlqServerAadAccount() *schema.Resource {
 		Schema: map[string]*schema.Schema{
 			sqlServerDnsProp: {
 				Type:        schema.TypeString,
-				Description: "The DNS name of the SQL server to add account",
+				Description: "The DNS name of the SQL server to add the account.",
 				Required:    true,
 				ForceNew:    true,
 			},
 			databaseProp: {
 				Type:        schema.TypeString,
-				Description: "The name of the database to add the account",
+				Description: "The name of the database to add the account.",
 				Required:    true,
 				ForceNew:    true,
 			},
 			accountNameProp: {
 				Type:        schema.TypeString,
-				Description: "The name of the account to add to the database",
+				Description: "The name of the account to add to the database.",
 				Required:    true,
 				ForceNew:    true,
 			},
 			portProp: {
 				Type:        schema.TypeInt,
-				Description: "Port to connect to the database server",
+				Description: "Port to connect to the database server.",
 				Optional:    true,
 				Default:     1433,
 				ForceNew:    true,
 			},
 			objectIdProp: {
 				Type:        schema.TypeString,
-				Description: "Azure AD object ID for the account",
+				Description: "Azure AD object ID for the account.",
 				Required:    true,
 				ForceNew:    true,
 			},
 			accountTypeProp: {
 				Type:             schema.TypeString,
-				Description:      "Type of account to create: either a single user or an AAD group",
+				Description:      "Type of account to create: either a single user or an AAD group.",
 				Optional:         true,
 				Default:          "user",
 				ValidateDiagFunc: stringInStringMapKeys(accountTypeMap),
@@ -66,7 +70,7 @@ func resourceMsSlqServerAadAccount() *schema.Resource {
 			},
 			roleProp: {
 				Type:             schema.TypeString,
-				Description:      "The role the account should get (e.g. owner, reader, etc.)",
+				Description:      "The role the account should get (e.g. owner, reader, etc.).",
 				Optional:         true,
 				Default:          "reader",
 				ValidateDiagFunc: stringInStringMapKeys(roleMap),
