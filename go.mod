@@ -1,4 +1,4 @@
-module github.com/jason-johnson/terraform-provider-sql-sso
+module github.com/jason-johnson/terraform-provider-sqlsso
 
 go 1.15
 
