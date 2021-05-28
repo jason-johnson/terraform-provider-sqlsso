@@ -1,5 +1,5 @@
 resource "sqlsso_mssql_server_aad_account" "example" {
-  sql_server_dns = "my.database.com"
+  sql_server_dns = "my.dbserver.com"
   database       = "mydb"
   account_name   = "myuser"
   object_id      = var.myuser_objectid
