@@ -28,6 +28,7 @@ website/node_modules
 website/vendor
 
 .devcontainer/
+docs/
 
 # Test exclusions
 !command/test-fixtures/**/*.tfstate
