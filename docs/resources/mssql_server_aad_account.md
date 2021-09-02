@@ -41,6 +41,6 @@ resource "sqlsso_mssql_server_aad_account" "example" {
 - **account_type** (String) Type of account to create: either a single user or an AAD group. Defaults to `user`.
 - **id** (String) The ID of this resource.
 - **port** (Number) Port to connect to the database server. Defaults to `1433`.
-- **role** (String) The role the account should get (e.g. owner, reader, etc.). Defaults to `reader`.
+- **role** (String) The role the account should get (one of: owner, reader, writer). Defaults to `reader`.
 
 
