@@ -15,7 +15,7 @@ import (
 )
 
 var accountTypeMap = map[string]string{"user": "E", "group": "X"}
-var roleMap = map[string]string{"owner": "db_owner", "reader": "db_datareader"}
+var roleMap = map[string]string{"owner": "db_owner", "reader": "db_datareader", "writer": "db_datawriter"}
 
 func resourceMsSlqServerAadAccount() *schema.Resource {
 
