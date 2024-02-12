@@ -31,16 +31,19 @@ resource "sqlsso_mssql_server_aad_account" "example" {
 
 ### Required
 
-- **account_name** (String) The name of the account to add to the database.
-- **database** (String) The name of the database to add the account.
-- **object_id** (String) Azure AD object ID for the account.
-- **sql_server_dns** (String) The DNS name of the SQL server to add the account.
+- `account_name` (String) The name of the account to add to the database.
+- `database` (String) The name of the database to add the account.
+- `object_id` (String) Azure AD object ID for the account.
+- `sql_server_dns` (String) The DNS name of the SQL server to add the account.
 
 ### Optional
 
-- **account_type** (String) Type of account to create: either a single user or an AAD group. Defaults to `user`.
-- **id** (String) The ID of this resource.
-- **port** (Number) Port to connect to the database server. Defaults to `1433`.
-- **role** (String) The role the account should get (one of: owner, reader, writer). Defaults to `reader`.
+- `account_type` (String) Type of account to create: either a single user or an AAD group. Defaults to `user`.
+- `port` (Number) Port to connect to the database server. Defaults to `1433`.
+- `role` (String) The role the account should get (e.g. owner, reader, etc.). Defaults to `reader`.
+
+### Read-Only
+
+- `id` (String) The ID of this resource.
 
 
