@@ -1,18 +1,16 @@
-package provider
+package resource_test
 
 import (
 	"regexp"
+	"terraform-provider-sqlsso/internal/acctest"
 	"testing"
 
-	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/resource"
+	"github.com/hashicorp/terraform-plugin-testing/helper/resource"
 )
 
 func TestAccresourceMsSlqServerAadAccount(t *testing.T) {
-	t.Skip("test not yet implemented, see github issue #3")
-
-	resource.UnitTest(t, resource.TestCase{
-		PreCheck:          func() { testAccPreCheck(t) },
-		ProviderFactories: providerFactories,
+	resource.Test(t, resource.TestCase{
+		ProtoV6ProviderFactories: acctest.TestAccProtoV6ProviderFactories,
 		Steps: []resource.TestStep{
 			{
 				Config: testAccresourceMsSlqServerAadAccount,

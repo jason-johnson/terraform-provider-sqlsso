@@ -1,35 +1,61 @@
 package provider
 
 import (
-	"fmt"
-	"strings"
-	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/schema"
+	"context"
+
+	sqlsso "terraform-provider-sqlsso/internal/resource"
+
+	"github.com/hashicorp/terraform-plugin-framework/datasource"
+	"github.com/hashicorp/terraform-plugin-framework/provider"
+	"github.com/hashicorp/terraform-plugin-framework/provider/schema"
+	"github.com/hashicorp/terraform-plugin-framework/resource"
 )
 
-func init() {
-	// Set descriptions to support markdown syntax, this will be used in document generation
-	// and the language server.
-	schema.DescriptionKind = schema.StringMarkdown
+var (
+	_ provider.Provider = &sqlssoProvider{}
+)
 
-	// Customize the content of descriptions when output. For example you can add defaults on
-	// to the exported descriptions if present.
-	schema.SchemaDescriptionBuilder = func(s *schema.Schema) string {
-		desc := s.Description
-		if s.Default != nil {
-			desc += fmt.Sprintf(" Defaults to `%v`.", s.Default)
+func New(version string) func() provider.Provider {
+	return func() provider.Provider {
+		return &sqlssoProvider{
+			version: version,
 		}
-		return strings.TrimSpace(desc)
 	}
 }
 
-func New(version string) func() *schema.Provider {
-	return func() *schema.Provider {
-		p := &schema.Provider{
-			ResourcesMap: map[string]*schema.Resource{
-				"sqlsso_mssql_server_aad_account": resourceMsSlqServerAadAccount(),
-			},
-		}
+type sqlssoProvider struct {
+	version string
+}
 
-		return p
+type sqlssoProviderModel struct {
+}
+
+func (p *sqlssoProvider) Metadata(_ context.Context, _ provider.MetadataRequest, resp *provider.MetadataResponse) {
+	resp.TypeName = "sqlsso"
+	resp.Version = p.version
+}
+
+func (p *sqlssoProvider) Schema(_ context.Context, _ provider.SchemaRequest, resp *provider.SchemaResponse) {
+	resp.Schema = schema.Schema{
+		Attributes: map[string]schema.Attribute{},
+	}
+}
+
+func (p *sqlssoProvider) Configure(ctx context.Context, req provider.ConfigureRequest, resp *provider.ConfigureResponse) {
+	// Retrieve provider data from configuration
+	var config sqlssoProviderModel
+	resp.Diagnostics.Append(req.Config.Get(ctx, &config)...)
+	if resp.Diagnostics.HasError() {
+		return
+	}
+}
+
+func (p *sqlssoProvider) DataSources(_ context.Context) []func() datasource.DataSource {
+	return []func() datasource.DataSource{}
+}
+
+func (p *sqlssoProvider) Resources(_ context.Context) []func() resource.Resource {
+	return []func() resource.Resource{
+		sqlsso.NewMssql(),
 	}
 }
