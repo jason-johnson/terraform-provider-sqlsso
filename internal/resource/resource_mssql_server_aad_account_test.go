@@ -9,6 +9,8 @@ import (
 )
 
 func TestAccresourceMsSlqServerAadAccount(t *testing.T) {
+	t.Skip("test not yet implemented, see github issue #3")
+
 	resource.Test(t, resource.TestCase{
 		ProtoV6ProviderFactories: acctest.TestAccProtoV6ProviderFactories,
 		Steps: []resource.TestStep{

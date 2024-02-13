@@ -86,6 +86,7 @@ func (d *mssqlResource) Schema(_ context.Context, _ resource.SchemaRequest, resp
 			portProp: schema.Int64Attribute{
 				Description: "Port to connect to the database server.",
 				Optional:    true,
+				Computed:    true,
 				Default:     int64default.StaticInt64(1433),
 				PlanModifiers: []planmodifier.Int64{
 					int64planmodifier.RequiresReplace(),
@@ -101,6 +102,7 @@ func (d *mssqlResource) Schema(_ context.Context, _ resource.SchemaRequest, resp
 			accountTypeProp: schema.StringAttribute{
 				Description: "Type of account to create: either a single user or an AAD group.",
 				Optional:    true,
+				Computed:    true,
 				Default:     stringdefault.StaticString("user"),
 				PlanModifiers: []planmodifier.String{
 					stringplanmodifier.RequiresReplace(),
@@ -112,6 +114,7 @@ func (d *mssqlResource) Schema(_ context.Context, _ resource.SchemaRequest, resp
 			roleProp: schema.StringAttribute{
 				Description: "The role the account should get (e.g. owner, reader, etc.).",
 				Optional:    true,
+				Computed:    true,
 				Default:     stringdefault.StaticString("reader"),
 				PlanModifiers: []planmodifier.String{
 					stringplanmodifier.RequiresReplace(),
@@ -238,7 +241,7 @@ func (c sqlConnection) dropAccount(ctx context.Context, account string, diags *d
 func (c sqlConnection) Execute(ctx context.Context, diags *diag.Diagnostics, command string, args ...interface{}) {
 	tokenProvider, err := getTokenProvider()
 	if err != nil {
-		diags.AddError("error", err.Error())
+		diags.AddError("error getting azcli token", err.Error())
 		return
 	}
 
