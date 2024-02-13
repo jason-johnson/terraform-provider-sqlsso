@@ -137,6 +137,14 @@ func (d *mssqlResource) Create(ctx context.Context, req resource.CreateRequest, 
 	if resp.Diagnostics.HasError() {
 		return
 	}
+
+	conn := createSQLConnection(config)
+	conn.createAccount(ctx, config, &resp.Diagnostics)
+
+	if !resp.Diagnostics.HasError() {
+		id := fmt.Sprint(config.DNS, ":", config.DB, ":", config.Port, "/", config.AccName)
+		d.SetId(id)
+	}
 }
 
 func (d *mssqlResource) Update(ctx context.Context, req resource.UpdateRequest, resp *resource.UpdateResponse) {
@@ -153,32 +161,11 @@ func (d *mssqlResource) Delete(ctx context.Context, req resource.DeleteRequest, 
 	if resp.Diagnostics.HasError() {
 		return
 	}
-}
 
-func resourceMsSlqServerAadAccountCreate(ctx context.Context, d *schema.ResourceData, m interface{}) diag.Diagnostics {
-	conn := createSQLConnection(d)
-	diag := conn.createAccount(ctx, d)
+	account := config.AccName
 
-	if !diag.HasError() {
-		server := d.Get(sqlServerDnsProp).(string)
-		database := d.Get(databaseProp).(string)
-		port := d.Get(portProp).(int)
-		account := d.Get(accountNameProp).(string)
-
-		id := fmt.Sprint(server, ":", database, ":", port, "/", account)
-		d.SetId(id)
-	}
-
-	return diag
-}
-
-func resourceMsSlqServerAadAccountDelete(ctx context.Context, d *schema.ResourceData, m interface{}) diag.Diagnostics {
-	account := d.Get(accountNameProp).(string)
-
-	conn := createSQLConnection(d)
-	diag := conn.dropAccount(ctx, account)
-
-	return diag
+	conn := createSQLConnection(config)
+	conn.dropAccount(ctx, account.ValueString(), &resp.Diagnostics)
 }
 
 func getTokenProvider() (func() (string, error), error) {
@@ -193,21 +180,29 @@ type sqlConnection struct {
 	connectionString string
 }
 
-func createSQLConnection(d *schema.ResourceData) sqlConnection {
-	server := d.Get(sqlServerDnsProp).(string)
-	database := d.Get(databaseProp).(string)
-	port := d.Get(portProp).(int)
-
+func createSQLConnection(config mssqlResourceModel) sqlConnection {
 	return sqlConnection{
-		connectionString: fmt.Sprintf("Server=%v;Database=%v;Port=%v;", server, database, port),
+		connectionString: fmt.Sprintf("Server=%v;Database=%v;Port=%v;", config.DNS, config.DB, config.Port),
 	}
 }
 
-func (c sqlConnection) createAccount(ctx context.Context, d *schema.ResourceData) (diags diag.Diagnostics) {
-	account := d.Get(accountNameProp).(string)
-	objectId := d.Get(objectIdProp).(string)
-	accountType, diags := stringFromMap(d, accountTypeProp, accountTypeMap, diags)
-	role, diags := stringFromMap(d, roleProp, roleMap, diags)
+func (c sqlConnection) createAccount(ctx context.Context, config mssqlResourceModel, diags *diag.Diagnostics) {
+	account := config.AccName
+	objectId := config.OID
+	accountType, accOk := accountTypeMap[config.AccType.ValueString()]
+	role, roleOk := roleMap[config.Role.ValueString()]
+
+	if !accOk {
+		diags.AddError("internal error", fmt.Sprintf("Invalid account type %q", accountType))
+	}
+
+	if !roleOk {
+		diags.AddError("internal error", fmt.Sprintf("Invalid role %q", role))
+	}
+
+	if !accOk || !roleOk {
+		return
+	}
 
 	debugLog("[DEBUG] Setting account to %q..", account)
 	debugLog("[DEBUG] Setting object_id to %q..", objectId)
@@ -220,7 +215,7 @@ func (c sqlConnection) createAccount(ctx context.Context, d *schema.ResourceData
 			SET @sql = 'ALTER ROLE ' + @role + ' ADD MEMBER ' + QuoteName(@account)
 			EXEC (@sql)`
 
-	return c.Execute(ctx, diags, cmd,
+	c.Execute(ctx, diags, cmd,
 		sql.Named("account", account),
 		sql.Named("objectId", objectId),
 		sql.Named("accountType", accountType),
@@ -228,24 +223,26 @@ func (c sqlConnection) createAccount(ctx context.Context, d *schema.ResourceData
 	)
 }
 
-func (c sqlConnection) dropAccount(ctx context.Context, account string) (diags diag.Diagnostics) {
+func (c sqlConnection) dropAccount(ctx context.Context, account string, diags *diag.Diagnostics) {
 
 	cmd := `DECLARE @sql nvarchar(max)
 			SET @sql = 'DROP USER ' + QuoteName(@account)
 			EXEC (@sql)`
 
-	return c.Execute(ctx, diags, cmd, sql.Named("account", account))
+	c.Execute(ctx, diags, cmd, sql.Named("account", account))
 }
 
-func (c sqlConnection) Execute(ctx context.Context, diags diag.Diagnostics, command string, args ...interface{}) diag.Diagnostics {
+func (c sqlConnection) Execute(ctx context.Context, diags *diag.Diagnostics, command string, args ...interface{}) {
 	tokenProvider, err := getTokenProvider()
 	if err != nil {
-		return diag.FromErr(err)
+		diags.AddError("error", err.Error())
+		return
 	}
 
 	connector, err := mssql.NewAccessTokenConnector(c.connectionString, tokenProvider)
 	if err != nil {
-		return diag.FromErr(err)
+		diags.AddError("error", err.Error())
+		return
 	}
 
 	conn := sql.OpenDB(connector)
@@ -255,10 +252,8 @@ func (c sqlConnection) Execute(ctx context.Context, diags diag.Diagnostics, comm
 
 	_, err = conn.ExecContext(ctx, command, args...)
 	if err != nil {
-		return diag.Errorf("error executing statement (%s) (%s): %s", command, c.connectionString, err)
+		diags.AddError("statement error", fmt.Sprintf("error executing statement (%s) (%s): %s", command, c.connectionString, err))
 	}
-
-	return diags
 }
 
 func debugLog(f string, v ...interface{}) {
