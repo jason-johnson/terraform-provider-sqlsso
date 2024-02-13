@@ -1,4 +1,4 @@
-package provider
+package resource
 
 const sqlServerDnsProp string = "sql_server_dns"
 const databaseProp string = "database"
