@@ -4,8 +4,6 @@ import (
 	"context"
 	"database/sql"
 	"fmt"
-	"log"
-	"os"
 
 	"github.com/Azure/go-autorest/autorest/azure/cli"
 	mssql "github.com/denisenkom/go-mssqldb"
@@ -19,12 +17,12 @@ import (
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema/stringplanmodifier"
 	"github.com/hashicorp/terraform-plugin-framework/schema/validator"
 	"github.com/hashicorp/terraform-plugin-framework/types"
+	"github.com/hashicorp/terraform-plugin-log/tflog"
 )
 
 // Ensure the implementation satisfies the expected interfaces.
 var (
-	_ resource.Resource              = &mssqlResource{}
-	_ resource.ResourceWithConfigure = &mssqlResource{}
+	_ resource.Resource = &mssqlResource{}
 )
 
 var accountTypeMap = map[string]string{"user": "E", "group": "X"}
@@ -39,14 +37,14 @@ type mssqlResource struct {
 }
 
 type mssqlResourceModel struct {
-	ID      types.String `tfsdk:"id"`
-	DNS     types.String `tfsdk:"sql_server_dns"`
-	DB      types.String `tfsdk:"database"`
-	AccName types.String `tfsdk:"account_name"`
-	Port    types.Int64  `tfsdk:"port"`
-	OID     types.String `tfsdk:"object_id"`
-	AccType types.String `tfsdk:"account_type"`
-	Role    types.String `tfsdk:"role"`
+	ID          types.String `tfsdk:"id"`
+	SqlServer   types.String `tfsdk:"sql_server_dns"`
+	Database    types.String `tfsdk:"database"`
+	Account     types.String `tfsdk:"account_name"`
+	Port        types.Int64  `tfsdk:"port"`
+	ObjectId    types.String `tfsdk:"object_id"`
+	AccountType types.String `tfsdk:"account_type"`
+	Role        types.String `tfsdk:"role"`
 }
 
 func (d *mssqlResource) Metadata(_ context.Context, req resource.MetadataRequest, resp *resource.MetadataResponse) {
@@ -60,6 +58,9 @@ func (d *mssqlResource) Schema(_ context.Context, _ resource.SchemaRequest, resp
 		Attributes: map[string]schema.Attribute{
 			"id": schema.StringAttribute{
 				Computed: true,
+				PlanModifiers: []planmodifier.String{
+					stringplanmodifier.UseStateForUnknown(),
+				},
 			},
 			sqlServerDnsProp: schema.StringAttribute{
 				Description: "The DNS name of the SQL server to add the account.",
@@ -122,13 +123,16 @@ func (d *mssqlResource) Schema(_ context.Context, _ resource.SchemaRequest, resp
 		}}
 }
 
-func (d *mssqlResource) Configure(_ context.Context, req resource.ConfigureRequest, resp *resource.ConfigureResponse) {
-	if req.ProviderData == nil {
+func (d *mssqlResource) Read(ctx context.Context, req resource.ReadRequest, resp *resource.ReadResponse) {
+	var config mssqlResourceModel
+	resp.Diagnostics.Append(req.State.Get(ctx, &config)...)
+	if resp.Diagnostics.HasError() {
 		return
 	}
-}
 
-func (d *mssqlResource) Read(ctx context.Context, req resource.ReadRequest, resp *resource.ReadResponse) {
+	// TODO: Could read status from the database and update the state
+
+	resp.Diagnostics.Append(resp.State.Set(ctx, &config)...)
 }
 
 func (d *mssqlResource) Create(ctx context.Context, req resource.CreateRequest, resp *resource.CreateResponse) {
@@ -142,27 +146,25 @@ func (d *mssqlResource) Create(ctx context.Context, req resource.CreateRequest, 
 	conn.createAccount(ctx, config, &resp.Diagnostics)
 
 	if !resp.Diagnostics.HasError() {
-		id := fmt.Sprint(config.DNS, ":", config.DB, ":", config.Port, "/", config.AccName)
-		d.SetId(id)
+		id := fmt.Sprint(config.SqlServer, ":", config.Database, ":", config.Port, "/", config.Account)
+		config.ID = types.StringValue(id)
 	}
+
+	resp.Diagnostics.Append(resp.State.Set(ctx, &config)...)
 }
 
 func (d *mssqlResource) Update(ctx context.Context, req resource.UpdateRequest, resp *resource.UpdateResponse) {
-	var config mssqlResourceModel
-	resp.Diagnostics.Append(req.Config.Get(ctx, &config)...)
-	if resp.Diagnostics.HasError() {
-		return
-	}
+	// Noop (any change requires delete and create)
 }
 
 func (d *mssqlResource) Delete(ctx context.Context, req resource.DeleteRequest, resp *resource.DeleteResponse) {
 	var config mssqlResourceModel
-	resp.Diagnostics.Append(req.Config.Get(ctx, &config)...)
+	resp.Diagnostics.Append(req.State.Get(ctx, &config)...)
 	if resp.Diagnostics.HasError() {
 		return
 	}
 
-	account := config.AccName
+	account := config.Account
 
 	conn := createSQLConnection(config)
 	conn.dropAccount(ctx, account.ValueString(), &resp.Diagnostics)
@@ -182,14 +184,14 @@ type sqlConnection struct {
 
 func createSQLConnection(config mssqlResourceModel) sqlConnection {
 	return sqlConnection{
-		connectionString: fmt.Sprintf("Server=%v;Database=%v;Port=%v;", config.DNS, config.DB, config.Port),
+		connectionString: fmt.Sprintf("Server=%v;Database=%v;Port=%v;", config.SqlServer, config.Database, config.Port),
 	}
 }
 
 func (c sqlConnection) createAccount(ctx context.Context, config mssqlResourceModel, diags *diag.Diagnostics) {
-	account := config.AccName
-	objectId := config.OID
-	accountType, accOk := accountTypeMap[config.AccType.ValueString()]
+	account := config.Account
+	objectId := config.ObjectId
+	accountType, accOk := accountTypeMap[config.AccountType.ValueString()]
 	role, roleOk := roleMap[config.Role.ValueString()]
 
 	if !accOk {
@@ -204,10 +206,11 @@ func (c sqlConnection) createAccount(ctx context.Context, config mssqlResourceMo
 		return
 	}
 
-	debugLog("[DEBUG] Setting account to %q..", account)
-	debugLog("[DEBUG] Setting object_id to %q..", objectId)
-	debugLog("[DEBUG] Setting accountType to %q..", accountType)
-	debugLog("[DEBUG] Setting role to %q..", role)
+	ctx = tflog.SetField(ctx, "account", account)
+	ctx = tflog.SetField(ctx, "objectId", objectId)
+	ctx = tflog.SetField(ctx, "accountType", accountType)
+	ctx = tflog.SetField(ctx, "role", role)
+	tflog.Debug(ctx, "Creating account..")
 
 	cmd := `DECLARE @sql nvarchar(max)
 			SET @sql = 'CREATE USER ' + QuoteName(@account) + ' WITH SID=' + CONVERT(varchar(64), CAST(CAST(@objectId AS UNIQUEIDENTIFIER) AS VARBINARY(16)), 1) + ', TYPE=' + @accountType
@@ -248,22 +251,10 @@ func (c sqlConnection) Execute(ctx context.Context, diags *diag.Diagnostics, com
 	conn := sql.OpenDB(connector)
 	defer conn.Close()
 
-	debugLog("[DEBUG] Executing command %q..", command)
+	tflog.Debug(ctx, fmt.Sprintf("Executing command %q..", command))
 
 	_, err = conn.ExecContext(ctx, command, args...)
 	if err != nil {
 		diags.AddError("statement error", fmt.Sprintf("error executing statement (%s) (%s): %s", command, c.connectionString, err))
 	}
-}
-
-func debugLog(f string, v ...interface{}) {
-	if os.Getenv("TF_LOG") == "" {
-		return
-	}
-
-	if os.Getenv("TF_ACC") != "" {
-		return
-	}
-
-	log.Printf(f, v...)
 }
