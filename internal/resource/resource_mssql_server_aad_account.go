@@ -148,10 +148,12 @@ func (d *mssqlResource) Create(ctx context.Context, req resource.CreateRequest, 
 	conn := createSQLConnection(plan)
 	conn.createAccount(ctx, plan, &resp.Diagnostics)
 
-	if !resp.Diagnostics.HasError() {
-		id := fmt.Sprint(plan.SqlServer, ":", plan.Database, ":", plan.Port, "/", plan.Account)
-		plan.ID = types.StringValue(id)
+	if resp.Diagnostics.HasError() {
+		return
 	}
+
+	id := fmt.Sprint(plan.SqlServer, ":", plan.Database, ":", plan.Port, "/", plan.Account)
+	plan.ID = types.StringValue(id)
 
 	resp.Diagnostics.Append(resp.State.Set(ctx, &plan)...)
 }
