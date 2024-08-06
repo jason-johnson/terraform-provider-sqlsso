@@ -6,7 +6,6 @@ import (
 	"fmt"
 
 	"github.com/Azure/go-autorest/autorest/azure/cli"
-	mssql "github.com/denisenkom/go-mssqldb"
 	"github.com/hashicorp/terraform-plugin-framework/diag"
 	"github.com/hashicorp/terraform-plugin-framework/resource"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema"
@@ -18,6 +17,7 @@ import (
 	"github.com/hashicorp/terraform-plugin-framework/schema/validator"
 	"github.com/hashicorp/terraform-plugin-framework/types"
 	"github.com/hashicorp/terraform-plugin-log/tflog"
+	mssql "github.com/microsoft/go-mssqldb"
 )
 
 // Ensure the implementation satisfies the expected interfaces.
@@ -189,7 +189,7 @@ type sqlConnection struct {
 
 func createSQLConnection(config mssqlResourceModel) sqlConnection {
 	return sqlConnection{
-		connectionString: fmt.Sprintf("Server=%v;Database=%v;Port=%v;", config.SqlServer, config.Database, config.Port),
+		connectionString: fmt.Sprintf("Server=%v;Database=%v;Port=%v;", config.SqlServer.ValueString(), config.Database.ValueString(), config.Port),
 	}
 }
 
