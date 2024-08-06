@@ -127,33 +127,33 @@ func (d *mssqlResource) Schema(_ context.Context, _ resource.SchemaRequest, resp
 }
 
 func (d *mssqlResource) Read(ctx context.Context, req resource.ReadRequest, resp *resource.ReadResponse) {
-	var config mssqlResourceModel
-	resp.Diagnostics.Append(req.State.Get(ctx, &config)...)
+	var state mssqlResourceModel
+	resp.Diagnostics.Append(req.State.Get(ctx, &state)...)
 	if resp.Diagnostics.HasError() {
 		return
 	}
 
 	// TODO: Could read status from the database and update the state
 
-	resp.Diagnostics.Append(resp.State.Set(ctx, &config)...)
+	resp.Diagnostics.Append(resp.State.Set(ctx, &state)...)
 }
 
 func (d *mssqlResource) Create(ctx context.Context, req resource.CreateRequest, resp *resource.CreateResponse) {
-	var config mssqlResourceModel
-	resp.Diagnostics.Append(req.Config.Get(ctx, &config)...)
+	var plan mssqlResourceModel
+	resp.Diagnostics.Append(req.Plan.Get(ctx, &plan)...)
 	if resp.Diagnostics.HasError() {
 		return
 	}
 
-	conn := createSQLConnection(config)
-	conn.createAccount(ctx, config, &resp.Diagnostics)
+	conn := createSQLConnection(plan)
+	conn.createAccount(ctx, plan, &resp.Diagnostics)
 
 	if !resp.Diagnostics.HasError() {
-		id := fmt.Sprint(config.SqlServer, ":", config.Database, ":", config.Port, "/", config.Account)
-		config.ID = types.StringValue(id)
+		id := fmt.Sprint(plan.SqlServer, ":", plan.Database, ":", plan.Port, "/", plan.Account)
+		plan.ID = types.StringValue(id)
 	}
 
-	resp.Diagnostics.Append(resp.State.Set(ctx, &config)...)
+	resp.Diagnostics.Append(resp.State.Set(ctx, &plan)...)
 }
 
 func (d *mssqlResource) Update(ctx context.Context, req resource.UpdateRequest, resp *resource.UpdateResponse) {
@@ -161,15 +161,15 @@ func (d *mssqlResource) Update(ctx context.Context, req resource.UpdateRequest, 
 }
 
 func (d *mssqlResource) Delete(ctx context.Context, req resource.DeleteRequest, resp *resource.DeleteResponse) {
-	var config mssqlResourceModel
-	resp.Diagnostics.Append(req.State.Get(ctx, &config)...)
+	var state mssqlResourceModel
+	resp.Diagnostics.Append(req.State.Get(ctx, &state)...)
 	if resp.Diagnostics.HasError() {
 		return
 	}
 
-	account := config.Account
+	account := state.Account
 
-	conn := createSQLConnection(config)
+	conn := createSQLConnection(state)
 	conn.dropAccount(ctx, account.ValueString(), &resp.Diagnostics)
 }
 
