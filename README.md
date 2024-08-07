@@ -5,7 +5,7 @@ The goal of this provider is to allow Single Sign on for SQL Databases
 
 ## Maintainers
 
-This provider plugin is currently maintained by the Jason Johnson.
+This provider plugin is currently maintained by Jason Johnson.
 
 ## Requirements
 
