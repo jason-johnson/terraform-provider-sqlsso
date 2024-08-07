@@ -194,8 +194,8 @@ func createSQLConnection(config mssqlResourceModel) sqlConnection {
 }
 
 func (c sqlConnection) createAccount(ctx context.Context, config mssqlResourceModel, diags *diag.Diagnostics) {
-	account := config.Account
-	objectId := config.ObjectId
+	account := config.Account.ValueString()
+	objectId := config.ObjectId.ValueString()
 	accountType, accOk := accountTypeMap[config.AccountType.ValueString()]
 	role, roleOk := roleMap[config.Role.ValueString()]
 
