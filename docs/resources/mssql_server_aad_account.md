@@ -22,6 +22,8 @@ provider "azurerm" {
 
 provider "sqlsso" {}
 
+data "azurerm_client_config" "current" {}
+
 resource "azurerm_resource_group" "example" {
   name     = "example-resources"
   location = "West Europe"
@@ -67,11 +69,16 @@ resource "azurerm_linux_web_app" "example" {
   }
 }
 
+# This will require the right permissions, see azuread_service_principal
+data "azuread_service_principal" "example" {
+  object_id = azurerm_linux_web_app.example.identity[0].principal_id
+}
+
 resource "sqlsso_mssql_server_aad_account" "example" {
   sql_server_dns = azurerm_mssql_server.example.fully_qualified_domain_name
   database       = azurerm_mssql_database.example.name
   account_name   = azurerm_linux_web_app.example.name
-  object_id      = azurerm_linux_web_app.example.identity.0.principal_id
+  object_id      = data.azuread_service_principal.example.application_id
   role           = "owner"
 }
 ```
