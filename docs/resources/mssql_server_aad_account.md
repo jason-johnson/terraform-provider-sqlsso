@@ -16,12 +16,62 @@ For this to work terraform should be run for the configured **Active Directory A
 ## Example Usage
 
 ```terraform
+provider "azurerm" {
+  features {}
+}
+
+provider "sqlsso" {}
+
+resource "azurerm_resource_group" "example" {
+  name     = "example-resources"
+  location = "West Europe"
+}
+
+resource "azurerm_mssql_server" "example" {
+  name                = "example-sqlserver"
+  resource_group_name = azurerm_resource_group.example.name
+  location            = azurerm_resource_group.example.location
+  version             = "12.0"
+  minimum_tls_version = "1.2"
+
+  azuread_administrator {
+    login_username              = "AzureAD Admin"
+    object_id                   = data.azurerm_client_config.current.object_id
+    azuread_authentication_only = true
+  }
+}
+
+resource "azurerm_mssql_database" "example" {
+  name      = "example-db"
+  server_id = azurerm_mssql_server.example.id
+}
+
+resource "azurerm_service_plan" "example" {
+  name                = "example-plan"
+  resource_group_name = azurerm_resource_group.example.name
+  location            = azurerm_resource_group.example.location
+  os_type             = "Linux"
+  sku_name            = "P1v2"
+}
+
+resource "azurerm_linux_web_app" "example" {
+  name                = "example-linux-web-app"
+  resource_group_name = azurerm_resource_group.example.name
+  location            = azurerm_service_plan.example.location
+  service_plan_id     = azurerm_service_plan.example.id
+
+  site_config {}
+
+  identity {
+    type = "SystemAssigned"
+  }
+}
+
 resource "sqlsso_mssql_server_aad_account" "example" {
-  sql_server_dns = "my.dbserver.com"
-  database       = "mydb"
-  account_name   = "myuser"
-  object_id      = var.myuser_objectid
-  account_type   = "user"
+  sql_server_dns = azurerm_mssql_server.example.fully_qualified_domain_name
+  database       = azurerm_mssql_database.example.name
+  account_name   = azurerm_linux_web_app.example.name
+  object_id      = azurerm_linux_web_app.example.identity.0.principal_id
   role           = "owner"
 }
 ```
@@ -38,12 +88,10 @@ resource "sqlsso_mssql_server_aad_account" "example" {
 
 ### Optional
 
-- `account_type` (String) Type of account to create: either a single user or an AAD group. Defaults to `user`.
-- `port` (Number) Port to connect to the database server. Defaults to `1433`.
-- `role` (String) The role the account should get (e.g. owner, reader, etc.). Defaults to `reader`.
+- `account_type` (String) Type of account to create: either a single user or an AAD group.
+- `port` (Number) Port to connect to the database server.
+- `role` (String) The role the account should get (e.g. owner, reader, etc.).
 
 ### Read-Only
 
 - `id` (String) The ID of this resource.
-
-
