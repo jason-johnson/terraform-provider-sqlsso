@@ -152,7 +152,7 @@ func (d *mssqlResource) Create(ctx context.Context, req resource.CreateRequest, 
 		return
 	}
 
-	id := fmt.Sprint(plan.SqlServer, ":", plan.Database, ":", plan.Port, "/", plan.Account)
+	id := fmt.Sprint(plan.SqlServer.ValueString(), ":", plan.Database.ValueString(), ":", plan.Port, "/", plan.Account.ValueString())
 	plan.ID = types.StringValue(id)
 
 	resp.Diagnostics.Append(resp.State.Set(ctx, &plan)...)
