@@ -1,7 +1,8 @@
 package resource_test
 
 import (
-	"regexp"
+	"fmt"
+	"os"
 	"terraform-provider-sqlsso/internal/acctest"
 	"testing"
 
@@ -9,16 +10,34 @@ import (
 )
 
 func TestAccresourceMsSlqServerAadAccount(t *testing.T) {
-	t.Skip("test not yet implemented, see github issue #3")
+	serverDns := os.Getenv("TF_SQLSSO_MSSQL_SERVER_DNS")
+	dbName := os.Getenv("TF_SQLSSO_DB_NAME")
+	accountName := os.Getenv("TF_SQLSSO_ACCOUNT_NAME")
+	objectId := os.Getenv("TF_SQLSSO_OBJECT_ID")
+
+	if len(serverDns) == 0 {
+		t.Skip("TF_SQLSSO_MSSQL_SERVER_DNS must be set to test MS SQL Server AAD Account")
+	}
+	if len(dbName) == 0 {
+		t.Skip("TF_SQLSSO_DB_NAME must be set for acceptance tests")
+	}
+	if len(accountName) == 0 {
+		t.Skip("TF_SQLSSO_ACCOUNT_NAME must be set for acceptance tests")
+	}
+	if len(objectId) == 0 {
+		t.Skip("TF_SQLSSO_OBJECT_ID must be set for acceptance tests")
+	}
+
+	config := fmt.Sprintf(testAccresourceMsSlqServerAadAccount, serverDns, dbName, accountName, objectId)
+	expectedId := fmt.Sprint(serverDns, ":", dbName, ":1433", "/", accountName)
 
 	resource.Test(t, resource.TestCase{
 		ProtoV6ProviderFactories: acctest.TestAccProtoV6ProviderFactories,
 		Steps: []resource.TestStep{
 			{
-				Config: testAccresourceMsSlqServerAadAccount,
+				Config: config,
 				Check: resource.ComposeTestCheckFunc(
-					resource.TestMatchResourceAttr(
-						"sqlsso_mssql_server_aad_account.foo", "sql_server_dns", regexp.MustCompile("^my")),
+					resource.TestCheckResourceAttr("sqlsso_mssql_server_aad_account.example", "id", expectedId),
 				),
 			},
 		},
@@ -26,12 +45,11 @@ func TestAccresourceMsSlqServerAadAccount(t *testing.T) {
 }
 
 const testAccresourceMsSlqServerAadAccount = `
-resource "sqlsso_mssql_server_aad_account" "foo" {
-  sql_server_dns = "my.database.com"
-	database = "mydb"
-	account_name = "user"
-	object_id = "0x111"
-	account_type = "user"
+resource "sqlsso_mssql_server_aad_account" "example" {
+  sql_server_dns = "%s"
+	database = "%s"
+	account_name = "%s"
+	object_id = "%s"
 	role = "owner"
 }
 `
