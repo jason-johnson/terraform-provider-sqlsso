@@ -57,5 +57,6 @@ func (p *sqlssoProvider) DataSources(_ context.Context) []func() datasource.Data
 func (p *sqlssoProvider) Resources(_ context.Context) []func() resource.Resource {
 	return []func() resource.Resource{
 		sqlsso.NewMssql,
+		sqlsso.NewPostgre,
 	}
 }

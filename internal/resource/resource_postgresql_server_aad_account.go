@@ -19,21 +19,18 @@ import (
 
 // Ensure the implementation satisfies the expected interfaces.
 var (
-	_ resource.Resource = &mssqlResource{}
+	_ resource.Resource = &postgreResource{}
 )
 
-var accountTypeMap = map[string]string{"user": "E", "group": "X"}
-var roleMap = map[string]string{"owner": "db_owner", "reader": "db_datareader", "writer": "db_datawriter"}
-
 // New is a helper function to simplify the provider implementation.
-func NewMssql() resource.Resource {
-	return &mssqlResource{}
+func NewPostgre() resource.Resource {
+	return &postgreResource{}
 }
 
-type mssqlResource struct {
+type postgreResource struct {
 }
 
-type mssqlResourceModel struct {
+type postgreResourceModel struct {
 	ID          types.String `tfsdk:"id"`
 	SqlServer   types.String `tfsdk:"sql_server_dns"`
 	Database    types.String `tfsdk:"database"`
@@ -44,12 +41,12 @@ type mssqlResourceModel struct {
 	Role        types.String `tfsdk:"role"`
 }
 
-func (d *mssqlResource) Metadata(_ context.Context, req resource.MetadataRequest, resp *resource.MetadataResponse) {
-	resp.TypeName = req.ProviderTypeName + "_mssql_server_aad_account"
+func (d *postgreResource) Metadata(_ context.Context, req resource.MetadataRequest, resp *resource.MetadataResponse) {
+	resp.TypeName = req.ProviderTypeName + "_postgresql_server_aad_account"
 }
 
 // Schema defines the schema for the resource.
-func (d *mssqlResource) Schema(_ context.Context, _ resource.SchemaRequest, resp *resource.SchemaResponse) {
+func (d *postgreResource) Schema(_ context.Context, _ resource.SchemaRequest, resp *resource.SchemaResponse) {
 	resp.Schema = schema.Schema{
 		Description: "`sqlsso_mssql_server_aad_account` enables AAD authentication for an Azure MS SQL server.\n\nFor this to work terraform should be run for the configured **Active Directory Admin** account, not the SQL Server Admin as AD users can only be administered with the AD Admin account. ",
 		Attributes: map[string]schema.Attribute{
@@ -123,8 +120,8 @@ func (d *mssqlResource) Schema(_ context.Context, _ resource.SchemaRequest, resp
 		}}
 }
 
-func (d *mssqlResource) Read(ctx context.Context, req resource.ReadRequest, resp *resource.ReadResponse) {
-	var state mssqlResourceModel
+func (d *postgreResource) Read(ctx context.Context, req resource.ReadRequest, resp *resource.ReadResponse) {
+	var state postgreResourceModel
 	resp.Diagnostics.Append(req.State.Get(ctx, &state)...)
 	if resp.Diagnostics.HasError() {
 		return
@@ -135,14 +132,14 @@ func (d *mssqlResource) Read(ctx context.Context, req resource.ReadRequest, resp
 	resp.Diagnostics.Append(resp.State.Set(ctx, &state)...)
 }
 
-func (d *mssqlResource) Create(ctx context.Context, req resource.CreateRequest, resp *resource.CreateResponse) {
-	var plan mssqlResourceModel
+func (d *postgreResource) Create(ctx context.Context, req resource.CreateRequest, resp *resource.CreateResponse) {
+	var plan postgreResourceModel
 	resp.Diagnostics.Append(req.Plan.Get(ctx, &plan)...)
 	if resp.Diagnostics.HasError() {
 		return
 	}
 
-	conn := ssoSql.CreateMssqlConnection(plan.SqlServer.ValueString(), plan.Database.ValueString(), plan.Port.ValueInt64())
+	conn := ssoSql.CreatePostgreConnection(plan.SqlServer.ValueString(), plan.Database.ValueString(), plan.Port.ValueInt64(), plan.Account.ValueString())
 
 	accountType, accOk := accountTypeMap[plan.AccountType.ValueString()]
 	role, roleOk := roleMap[plan.Role.ValueString()]
@@ -159,7 +156,7 @@ func (d *mssqlResource) Create(ctx context.Context, req resource.CreateRequest, 
 		return
 	}
 
-	conn.CreateMssqlAccount(ctx, plan.Account.ValueString(), plan.ObjectId.ValueString(), accountType, role, &resp.Diagnostics)
+	conn.CreatePostgreAccount(ctx, plan.Account.ValueString(), plan.ObjectId.ValueString(), accountType, role, &resp.Diagnostics)
 
 	if resp.Diagnostics.HasError() {
 		return
@@ -171,12 +168,12 @@ func (d *mssqlResource) Create(ctx context.Context, req resource.CreateRequest, 
 	resp.Diagnostics.Append(resp.State.Set(ctx, &plan)...)
 }
 
-func (d *mssqlResource) Update(ctx context.Context, req resource.UpdateRequest, resp *resource.UpdateResponse) {
+func (d *postgreResource) Update(ctx context.Context, req resource.UpdateRequest, resp *resource.UpdateResponse) {
 	// Noop (any change requires delete and create)
 }
 
-func (d *mssqlResource) Delete(ctx context.Context, req resource.DeleteRequest, resp *resource.DeleteResponse) {
-	var state mssqlResourceModel
+func (d *postgreResource) Delete(ctx context.Context, req resource.DeleteRequest, resp *resource.DeleteResponse) {
+	var state postgreResourceModel
 	resp.Diagnostics.Append(req.State.Get(ctx, &state)...)
 	if resp.Diagnostics.HasError() {
 		return
@@ -184,6 +181,6 @@ func (d *mssqlResource) Delete(ctx context.Context, req resource.DeleteRequest, 
 
 	account := state.Account
 
-	conn := ssoSql.CreateMssqlConnection(state.SqlServer.ValueString(), state.Database.ValueString(), state.Port.ValueInt64())
-	conn.DropMssqlAccount(ctx, account.ValueString(), &resp.Diagnostics)
+	conn := ssoSql.CreatePostgreConnection(state.SqlServer.ValueString(), state.Database.ValueString(), state.Port.ValueInt64(), state.Account.ValueString())
+	conn.DropPostgreAccount(ctx, account.ValueString(), &resp.Diagnostics)
 }
