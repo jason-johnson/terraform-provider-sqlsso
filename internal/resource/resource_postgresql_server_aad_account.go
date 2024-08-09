@@ -135,7 +135,7 @@ func (d *postgreResource) Create(ctx context.Context, req resource.CreateRequest
 		return
 	}
 
-	conn.CreatePostgreAccount(ctx, plan.Account.ValueString(), &resp.Diagnostics)
+	conn.CreatePostgreAccount(ctx, plan.Account.ValueString(), role, &resp.Diagnostics)
 
 	if resp.Diagnostics.HasError() {
 		return
