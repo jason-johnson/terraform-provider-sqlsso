@@ -12,8 +12,8 @@ import (
 func TestAccresourcePostgreServerAadAccount(t *testing.T) {
 	serverDns := os.Getenv("TF_SQLSSO_POSTGRE_SERVER_DNS")
 	dbName := os.Getenv("TF_SQLSSO_DB_NAME")
+	userName := os.Getenv("TF_SQLSSO_USER_NAME")
 	accountName := os.Getenv("TF_SQLSSO_ACCOUNT_NAME")
-	objectId := os.Getenv("TF_SQLSSO_OBJECT_ID")
 
 	if len(serverDns) == 0 {
 		t.Skip("TF_SQLSSO_POSTGRE_SERVER_DNS must be set to test MS SQL Server AAD Account")
@@ -24,11 +24,11 @@ func TestAccresourcePostgreServerAadAccount(t *testing.T) {
 	if len(accountName) == 0 {
 		t.Skip("TF_SQLSSO_ACCOUNT_NAME must be set for acceptance tests")
 	}
-	if len(objectId) == 0 {
-		t.Skip("TF_SQLSSO_OBJECT_ID must be set for acceptance tests")
+	if len(userName) == 0 {
+		t.Skip("TF_SQLSSO_USER_NAME must be set for acceptance tests")
 	}
 
-	config := fmt.Sprintf(testAccresourcePostgreServerAadAccount, serverDns, dbName, accountName, objectId)
+	config := fmt.Sprintf(testAccresourcePostgreServerAadAccount, serverDns, dbName, userName, accountName)
 	expectedId := fmt.Sprint(serverDns, ":", dbName, ":1433", "/", accountName)
 
 	resource.Test(t, resource.TestCase{
@@ -48,8 +48,8 @@ const testAccresourcePostgreServerAadAccount = `
 resource "sqlsso_postgresql_server_aad_account" "example" {
   sql_server_dns = "%s"
 	database = "%s"
+	user_name = "%s"
 	account_name = "%s"
-	object_id = "%s"
 	role = "owner"
 }
 `

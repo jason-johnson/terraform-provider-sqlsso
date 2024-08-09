@@ -31,14 +31,13 @@ type postgreResource struct {
 }
 
 type postgreResourceModel struct {
-	ID          types.String `tfsdk:"id"`
-	SqlServer   types.String `tfsdk:"sql_server_dns"`
-	Database    types.String `tfsdk:"database"`
-	Account     types.String `tfsdk:"account_name"`
-	Port        types.Int64  `tfsdk:"port"`
-	ObjectId    types.String `tfsdk:"object_id"`
-	AccountType types.String `tfsdk:"account_type"`
-	Role        types.String `tfsdk:"role"`
+	ID        types.String `tfsdk:"id"`
+	SqlServer types.String `tfsdk:"sql_server_dns"`
+	Database  types.String `tfsdk:"database"`
+	UserName  types.String `tfsdk:"user_name"`
+	Account   types.String `tfsdk:"account_name"`
+	Port      types.Int64  `tfsdk:"port"`
+	Role      types.String `tfsdk:"role"`
 }
 
 func (d *postgreResource) Metadata(_ context.Context, req resource.MetadataRequest, resp *resource.MetadataResponse) {
@@ -70,6 +69,13 @@ func (d *postgreResource) Schema(_ context.Context, _ resource.SchemaRequest, re
 					stringplanmodifier.RequiresReplace(),
 				},
 			},
+			userNameProp: schema.StringAttribute{
+				Description: "The name of the account that will log into the database (not currently infered from connection).",
+				Required:    true,
+				PlanModifiers: []planmodifier.String{
+					stringplanmodifier.RequiresReplace(),
+				},
+			},
 			accountNameProp: schema.StringAttribute{
 				Description: "The name of the account to add to the database.",
 				Required:    true,
@@ -81,28 +87,9 @@ func (d *postgreResource) Schema(_ context.Context, _ resource.SchemaRequest, re
 				Description: "Port to connect to the database server.",
 				Optional:    true,
 				Computed:    true,
-				Default:     int64default.StaticInt64(1433),
+				Default:     int64default.StaticInt64(5432),
 				PlanModifiers: []planmodifier.Int64{
 					int64planmodifier.RequiresReplace(),
-				},
-			},
-			objectIdProp: schema.StringAttribute{
-				Description: "Azure AD object ID for the account.",
-				Required:    true,
-				PlanModifiers: []planmodifier.String{
-					stringplanmodifier.RequiresReplace(),
-				},
-			},
-			accountTypeProp: schema.StringAttribute{
-				Description: "Type of account to create: either a single user or an AAD group.",
-				Optional:    true,
-				Computed:    true,
-				Default:     stringdefault.StaticString("user"),
-				PlanModifiers: []planmodifier.String{
-					stringplanmodifier.RequiresReplace(),
-				},
-				Validators: []validator.String{
-					stringInMap(accountTypeMap),
 				},
 			},
 			roleProp: schema.StringAttribute{
@@ -139,24 +126,16 @@ func (d *postgreResource) Create(ctx context.Context, req resource.CreateRequest
 		return
 	}
 
-	conn := ssoSql.CreatePostgreConnection(plan.SqlServer.ValueString(), plan.Database.ValueString(), plan.Port.ValueInt64(), plan.Account.ValueString())
+	conn := ssoSql.CreatePostgreConnection(plan.SqlServer.ValueString(), plan.Database.ValueString(), plan.Port.ValueInt64(), plan.UserName.ValueString())
 
-	accountType, accOk := accountTypeMap[plan.AccountType.ValueString()]
 	role, roleOk := roleMap[plan.Role.ValueString()]
-
-	if !accOk {
-		resp.Diagnostics.AddError("internal error", fmt.Sprintf("Invalid account type %q", accountType))
-	}
 
 	if !roleOk {
 		resp.Diagnostics.AddError("internal error", fmt.Sprintf("Invalid role %q", role))
-	}
-
-	if !accOk || !roleOk {
 		return
 	}
 
-	conn.CreatePostgreAccount(ctx, plan.Account.ValueString(), plan.ObjectId.ValueString(), accountType, role, &resp.Diagnostics)
+	conn.CreatePostgreAccount(ctx, plan.Account.ValueString(), &resp.Diagnostics)
 
 	if resp.Diagnostics.HasError() {
 		return

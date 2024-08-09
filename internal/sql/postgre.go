@@ -27,7 +27,7 @@ func (c postgreConnection) getConnectionString() string {
 }
 
 func (c postgreConnection) createConnection() (*sql.DB, error) {
-	token, err := cli.GetTokenFromCLI("https://database.windows.net/")
+	token, err := cli.GetTokenFromCLI("https://ossrdbms-aad.database.windows.net")
 	if err != nil {
 		return nil, err
 	}
@@ -37,12 +37,9 @@ func (c postgreConnection) createConnection() (*sql.DB, error) {
 	return sql.Open("postgres", connStr)
 }
 
-func (c postgreConnection) CreatePostgreAccount(ctx context.Context, account string, objectId string, accountType string, role string, diags *diag.Diagnostics) {
+func (c postgreConnection) CreatePostgreAccount(ctx context.Context, account string, diags *diag.Diagnostics) {
 
 	ctx = tflog.SetField(ctx, "account", account)
-	ctx = tflog.SetField(ctx, "objectId", objectId)
-	ctx = tflog.SetField(ctx, "accountType", accountType)
-	ctx = tflog.SetField(ctx, "role", role)
 	tflog.Debug(ctx, "Creating account..")
 
 	cmd := `DECLARE @sql nvarchar(max)
@@ -53,9 +50,6 @@ func (c postgreConnection) CreatePostgreAccount(ctx context.Context, account str
 
 	Execute(ctx, c, diags, cmd,
 		sql.Named("account", account),
-		sql.Named("objectId", objectId),
-		sql.Named("accountType", accountType),
-		sql.Named("role", role),
 	)
 }
 
