@@ -46,9 +46,9 @@ func (c postgreConnection) CreatePostgreAccount(ctx context.Context, account str
 	tflog.Debug(ctx, "Creating account..")
 
 	cmd := `DECLARE @sql nvarchar(max)
-			SET @sql = 'CREATE USER ' + QuoteName(@account) + ' WITH SID=' + CONVERT(varchar(64), CAST(CAST(@objectId AS UNIQUEIDENTIFIER) AS VARBINARY(16)), 1) + ', TYPE=' + @accountType
+			SET @sql = 'CREATE USER ' + QuoteName(@account) + ' IN ROLE azure_ad_user'
 			EXEC (@sql)
-			SET @sql = 'ALTER ROLE ' + @role + ' ADD MEMBER ' + QuoteName(@account)
+			SET @sql = 'GRANT ' + @role + ' TO ' + QuoteName(@account) + ' WITH INHERIT TRUE'
 			EXEC (@sql)`
 
 	Execute(ctx, c, diags, cmd,
@@ -62,6 +62,12 @@ func (c postgreConnection) CreatePostgreAccount(ctx context.Context, account str
 func (c postgreConnection) DropPostgreAccount(ctx context.Context, account string, diags *diag.Diagnostics) {
 
 	cmd := `DECLARE @sql nvarchar(max)
+			SET @sql = 'REVOKE ALL PRIVILEGES ON ALL TABLES IN SCHEMA public FROM ' + QuoteName(@account)
+			EXEC (@sql)
+			SET @sql = 'REVOKE ALL PRIVILEGES ON ALL SEQUENCES IN SCHEMA public FROM ' + QuoteName(@account)
+			EXEC (@sql)
+			SET @sql = 'REVOKE ALL PRIVILEGES ON ALL FUNCTIONS IN SCHEMA public FROM ' + QuoteName(@account)
+			EXEC (@sql)
 			SET @sql = 'DROP USER ' + QuoteName(@account)
 			EXEC (@sql)`
 
