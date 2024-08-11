@@ -49,10 +49,17 @@ func (c postgreConnection) createConnection() (*sql.DB, error) {
 
 func (c postgreConnection) CreateAccount(ctx context.Context, diags *diag.Diagnostics) {
 
+	// Create account has to run on postgres database
+	targetDatabase := c.database
+	c.database = "postgres"
+
 	ctx = tflog.SetField(ctx, "account", c.account)
 	tflog.Debug(ctx, "Creating account..")
 	cmd := fmt.Sprintf(`pg_catalog.pgaadauth_create_principal("%s", false, false);`, c.account)
 	Execute(ctx, c, diags, cmd)
+
+	// grant has to run on target
+	c.database = targetDatabase
 
 	tflog.Debug(ctx, "Account created, creating role..")
 	cmd = fmt.Sprintf(`GRANT %s TO "%s" WITH INHERIT TRUE;`, c.role, c.account)
