@@ -13,17 +13,27 @@ import (
 )
 
 type postgreConnection struct {
-	connectionString string
+	sqlServer string
+	database  string
+	port      int64
+	user      string
+	account   string
+	role      string
 }
 
-func CreatePostgreConnection(sqlServer string, database string, port int64, user string) postgreConnection {
+func CreatePostgreConnection(sqlServer string, database string, port int64, user string, account string, role string) postgreConnection {
 	return postgreConnection{
-		connectionString: fmt.Sprintf("postgres://%v:{password}@%v:%v/%v?sslmode=require", user, sqlServer, port, database),
+		sqlServer: sqlServer,
+		database:  database,
+		port:      port,
+		user:      user,
+		account:   account,
+		role:      role,
 	}
 }
 
 func (c postgreConnection) getConnectionString() string {
-	return c.connectionString
+	return fmt.Sprintf("postgres://%v:{password}@%v:%v/%v?sslmode=require", c.user, c.sqlServer, c.port, c.database)
 }
 
 func (c postgreConnection) createConnection() (*sql.DB, error) {
@@ -32,23 +42,24 @@ func (c postgreConnection) createConnection() (*sql.DB, error) {
 		return nil, err
 	}
 
-	connStr := strings.Replace(c.connectionString, "{password}", token.AccessToken, 1)
+	connStr := strings.Replace(c.getConnectionString(), "{password}", token.AccessToken, 1)
 
 	return sql.Open("postgres", connStr)
 }
 
-func (c postgreConnection) CreatePostgreAccount(ctx context.Context, account string, role string, diags *diag.Diagnostics) {
+func (c postgreConnection) CreateAccount(ctx context.Context, diags *diag.Diagnostics) {
 
-	ctx = tflog.SetField(ctx, "account", account)
+	ctx = tflog.SetField(ctx, "account", c.account)
 	tflog.Debug(ctx, "Creating account..")
+	cmd := fmt.Sprintf(`pg_catalog.pgaadauth_create_principal("%s", false, false);`, c.account)
+	Execute(ctx, c, diags, cmd)
 
-	cmd := fmt.Sprintf(`CREATE USER "%s" IN ROLE azure_ad_user;
-						GRANT %s TO "%s" WITH INHERIT TRUE;`, account, role, account)
-
+	tflog.Debug(ctx, "Account created, creating role..")
+	cmd = fmt.Sprintf(`GRANT %s TO "%s" WITH INHERIT TRUE;`, c.role, c.account)
 	Execute(ctx, c, diags, cmd)
 }
 
-func (c postgreConnection) DropPostgreAccount(ctx context.Context, account string, diags *diag.Diagnostics) {
+func (c postgreConnection) DropAccount(ctx context.Context, diags *diag.Diagnostics) {
 
 	cmd := `DECLARE @sql nvarchar(max)
 			SET @sql = 'REVOKE ALL PRIVILEGES ON ALL TABLES IN SCHEMA public FROM ' + QUOTE_IDENT(@account)
@@ -60,5 +71,9 @@ func (c postgreConnection) DropPostgreAccount(ctx context.Context, account strin
 			SET @sql = 'DROP USER ' + QUOTE_IDENT(@account)
 			EXEC (@sql)`
 
-	Execute(ctx, c, diags, cmd, sql.Named("account", account))
+	Execute(ctx, c, diags, cmd, sql.Named("account", c.account))
+}
+
+func (c postgreConnection) Id() string {
+	return fmt.Sprint(c.sqlServer, ":", c.database, ":", c.port, "/", c.account)
 }

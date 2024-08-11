@@ -126,8 +126,6 @@ func (d *postgreResource) Create(ctx context.Context, req resource.CreateRequest
 		return
 	}
 
-	conn := ssoSql.CreatePostgreConnection(plan.SqlServer.ValueString(), plan.Database.ValueString(), plan.Port.ValueInt64(), plan.UserName.ValueString())
-
 	role, roleOk := roleMap[plan.Role.ValueString()]
 
 	if !roleOk {
@@ -135,13 +133,15 @@ func (d *postgreResource) Create(ctx context.Context, req resource.CreateRequest
 		return
 	}
 
-	conn.CreatePostgreAccount(ctx, plan.Account.ValueString(), role, &resp.Diagnostics)
+	conn := ssoSql.CreatePostgreConnection(plan.SqlServer.ValueString(), plan.Database.ValueString(), plan.Port.ValueInt64(), plan.UserName.ValueString(), plan.Account.ValueString(), role)
+
+	conn.CreateAccount(ctx, &resp.Diagnostics)
 
 	if resp.Diagnostics.HasError() {
 		return
 	}
 
-	id := fmt.Sprint(plan.SqlServer.ValueString(), ":", plan.Database.ValueString(), ":", plan.Port, "/", plan.Account.ValueString())
+	id := conn.Id()
 	plan.ID = types.StringValue(id)
 
 	resp.Diagnostics.Append(resp.State.Set(ctx, &plan)...)
@@ -158,8 +158,6 @@ func (d *postgreResource) Delete(ctx context.Context, req resource.DeleteRequest
 		return
 	}
 
-	account := state.Account
-
-	conn := ssoSql.CreatePostgreConnection(state.SqlServer.ValueString(), state.Database.ValueString(), state.Port.ValueInt64(), state.Account.ValueString())
-	conn.DropPostgreAccount(ctx, account.ValueString(), &resp.Diagnostics)
+	conn := ssoSql.CreatePostgreConnection(state.SqlServer.ValueString(), state.Database.ValueString(), state.Port.ValueInt64(), state.Account.ValueString(), state.Role.ValueString(), state.Role.ValueString())
+	conn.DropAccount(ctx, &resp.Diagnostics)
 }

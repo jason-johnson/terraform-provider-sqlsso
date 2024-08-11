@@ -12,17 +12,29 @@ import (
 )
 
 type mssqlConnection struct {
-	connectionString string
+	sqlServer   string
+	database    string
+	port        int64
+	account     string
+	objectId    string
+	accountType string
+	role        string
 }
 
-func CreateMssqlConnection(sqlServer string, database string, port int64) mssqlConnection {
+func CreateMssqlConnection(sqlServer string, database string, port int64, account string, objectId string, accountType string, role string) mssqlConnection {
 	return mssqlConnection{
-		connectionString: fmt.Sprintf("Server=%v;Database=%v;Port=%v;", sqlServer, database, port),
+		sqlServer:   sqlServer,
+		database:    database,
+		port:        port,
+		account:     account,
+		objectId:    objectId,
+		accountType: accountType,
+		role:        role,
 	}
 }
 
 func (c mssqlConnection) getConnectionString() string {
-	return c.connectionString
+	return fmt.Sprintf("Server=%v;Database=%v;Port=%v;", c.sqlServer, c.database, c.port)
 }
 
 func getTokenProvider() (func() (string, error), error) {
@@ -39,7 +51,7 @@ func (c mssqlConnection) createConnection() (*sql.DB, error) {
 		return nil, err
 	}
 
-	connector, err := mssql.NewAccessTokenConnector(c.connectionString, tokenProvider)
+	connector, err := mssql.NewAccessTokenConnector(c.getConnectionString(), tokenProvider)
 	if err != nil {
 		return nil, err
 	}
@@ -47,12 +59,12 @@ func (c mssqlConnection) createConnection() (*sql.DB, error) {
 	return sql.OpenDB(connector), nil
 }
 
-func (c mssqlConnection) CreateMssqlAccount(ctx context.Context, account string, objectId string, accountType string, role string, diags *diag.Diagnostics) {
+func (c mssqlConnection) CreateAccount(ctx context.Context, diags *diag.Diagnostics) {
 
-	ctx = tflog.SetField(ctx, "account", account)
-	ctx = tflog.SetField(ctx, "objectId", objectId)
-	ctx = tflog.SetField(ctx, "accountType", accountType)
-	ctx = tflog.SetField(ctx, "role", role)
+	ctx = tflog.SetField(ctx, "account", c.account)
+	ctx = tflog.SetField(ctx, "objectId", c.objectId)
+	ctx = tflog.SetField(ctx, "accountType", c.accountType)
+	ctx = tflog.SetField(ctx, "role", c.role)
 	tflog.Debug(ctx, "Creating account..")
 
 	cmd := `DECLARE @sql nvarchar(max)
@@ -62,18 +74,22 @@ func (c mssqlConnection) CreateMssqlAccount(ctx context.Context, account string,
 			EXEC (@sql)`
 
 	Execute(ctx, c, diags, cmd,
-		sql.Named("account", account),
-		sql.Named("objectId", objectId),
-		sql.Named("accountType", accountType),
-		sql.Named("role", role),
+		sql.Named("account", c.account),
+		sql.Named("objectId", c.objectId),
+		sql.Named("accountType", c.accountType),
+		sql.Named("role", c.role),
 	)
 }
 
-func (c mssqlConnection) DropMssqlAccount(ctx context.Context, account string, diags *diag.Diagnostics) {
+func (c mssqlConnection) DropAccount(ctx context.Context, diags *diag.Diagnostics) {
 
 	cmd := `DECLARE @sql nvarchar(max)
 			SET @sql = 'DROP USER ' + QuoteName(@account)
 			EXEC (@sql)`
 
-	Execute(ctx, c, diags, cmd, sql.Named("account", account))
+	Execute(ctx, c, diags, cmd, sql.Named("account", c.account))
+}
+
+func (c mssqlConnection) Id() string {
+	return fmt.Sprint(c.sqlServer, ":", c.database, ":", c.port, "/", c.account)
 }

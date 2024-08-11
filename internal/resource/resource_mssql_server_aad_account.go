@@ -142,8 +142,6 @@ func (d *mssqlResource) Create(ctx context.Context, req resource.CreateRequest, 
 		return
 	}
 
-	conn := ssoSql.CreateMssqlConnection(plan.SqlServer.ValueString(), plan.Database.ValueString(), plan.Port.ValueInt64())
-
 	accountType, accOk := accountTypeMap[plan.AccountType.ValueString()]
 	role, roleOk := roleMap[plan.Role.ValueString()]
 
@@ -159,13 +157,14 @@ func (d *mssqlResource) Create(ctx context.Context, req resource.CreateRequest, 
 		return
 	}
 
-	conn.CreateMssqlAccount(ctx, plan.Account.ValueString(), plan.ObjectId.ValueString(), accountType, role, &resp.Diagnostics)
+	conn := ssoSql.CreateMssqlConnection(plan.SqlServer.ValueString(), plan.Database.ValueString(), plan.Port.ValueInt64(), plan.Account.ValueString(), plan.ObjectId.ValueString(), accountType, role)
+	conn.CreateAccount(ctx, &resp.Diagnostics)
 
 	if resp.Diagnostics.HasError() {
 		return
 	}
 
-	id := fmt.Sprint(plan.SqlServer.ValueString(), ":", plan.Database.ValueString(), ":", plan.Port, "/", plan.Account.ValueString())
+	id := conn.Id()
 	plan.ID = types.StringValue(id)
 
 	resp.Diagnostics.Append(resp.State.Set(ctx, &plan)...)
@@ -182,8 +181,6 @@ func (d *mssqlResource) Delete(ctx context.Context, req resource.DeleteRequest, 
 		return
 	}
 
-	account := state.Account
-
-	conn := ssoSql.CreateMssqlConnection(state.SqlServer.ValueString(), state.Database.ValueString(), state.Port.ValueInt64())
-	conn.DropMssqlAccount(ctx, account.ValueString(), &resp.Diagnostics)
+	conn := ssoSql.CreateMssqlConnection(state.SqlServer.ValueString(), state.Database.ValueString(), state.Port.ValueInt64(), state.Account.ValueString(), state.ObjectId.ValueString(), state.AccountType.ValueString(), state.Role.ValueString())
+	conn.DropAccount(ctx, &resp.Diagnostics)
 }
