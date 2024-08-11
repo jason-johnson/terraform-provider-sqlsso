@@ -23,7 +23,7 @@ var (
 )
 
 var accountTypeMap = map[string]string{"user": "E", "group": "X"}
-var roleMap = map[string]string{"owner": "db_owner", "reader": "db_datareader", "writer": "db_datawriter"}
+var mssqlRoleMap = map[string]string{"owner": "db_owner", "reader": "db_datareader", "writer": "db_datawriter"}
 
 // New is a helper function to simplify the provider implementation.
 func NewMssql() resource.Resource {
@@ -117,7 +117,7 @@ func (d *mssqlResource) Schema(_ context.Context, _ resource.SchemaRequest, resp
 					stringplanmodifier.RequiresReplace(),
 				},
 				Validators: []validator.String{
-					stringInMap(roleMap),
+					stringInMap(mssqlRoleMap),
 				},
 			},
 		}}
@@ -143,7 +143,7 @@ func (d *mssqlResource) Create(ctx context.Context, req resource.CreateRequest, 
 	}
 
 	accountType, accOk := accountTypeMap[plan.AccountType.ValueString()]
-	role, roleOk := roleMap[plan.Role.ValueString()]
+	role, roleOk := mssqlRoleMap[plan.Role.ValueString()]
 
 	if !accOk {
 		resp.Diagnostics.AddError("internal error", fmt.Sprintf("Invalid account type %q", accountType))

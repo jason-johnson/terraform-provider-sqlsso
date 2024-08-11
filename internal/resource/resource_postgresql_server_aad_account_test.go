@@ -29,7 +29,7 @@ func TestAccresourcePostgreServerAadAccount(t *testing.T) {
 	}
 
 	config := fmt.Sprintf(testAccresourcePostgreServerAadAccount, serverDns, dbName, userName, accountName)
-	expectedId := fmt.Sprint(serverDns, ":", dbName, ":1433", "/", accountName)
+	expectedId := fmt.Sprint(serverDns, ":", dbName, ":5432", "/", accountName)
 
 	resource.Test(t, resource.TestCase{
 		ProtoV6ProviderFactories: acctest.TestAccProtoV6ProviderFactories,

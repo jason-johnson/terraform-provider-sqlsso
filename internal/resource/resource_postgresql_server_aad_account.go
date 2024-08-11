@@ -22,6 +22,8 @@ var (
 	_ resource.Resource = &postgreResource{}
 )
 
+var pglRoleMap = map[string]string{"owner": "ALL PRIVILEGES", "reader": "pg_read_all_data", "writer": "pg_write_all_data"}
+
 // New is a helper function to simplify the provider implementation.
 func NewPostgre() resource.Resource {
 	return &postgreResource{}
@@ -101,7 +103,7 @@ func (d *postgreResource) Schema(_ context.Context, _ resource.SchemaRequest, re
 					stringplanmodifier.RequiresReplace(),
 				},
 				Validators: []validator.String{
-					stringInMap(roleMap),
+					stringInMap(pglRoleMap),
 				},
 			},
 		}}
@@ -126,7 +128,7 @@ func (d *postgreResource) Create(ctx context.Context, req resource.CreateRequest
 		return
 	}
 
-	role, roleOk := roleMap[plan.Role.ValueString()]
+	role, roleOk := pglRoleMap[plan.Role.ValueString()]
 
 	if !roleOk {
 		resp.Diagnostics.AddError("internal error", fmt.Sprintf("Invalid role %q", role))
@@ -158,6 +160,13 @@ func (d *postgreResource) Delete(ctx context.Context, req resource.DeleteRequest
 		return
 	}
 
-	conn := ssoSql.CreatePostgreConnection(state.SqlServer.ValueString(), state.Database.ValueString(), state.Port.ValueInt64(), state.Account.ValueString(), state.Role.ValueString(), state.Role.ValueString())
+	role, roleOk := pglRoleMap[state.Role.ValueString()]
+
+	if !roleOk {
+		resp.Diagnostics.AddError("internal error", fmt.Sprintf("Invalid role %q", role))
+		return
+	}
+
+	conn := ssoSql.CreatePostgreConnection(state.SqlServer.ValueString(), state.Database.ValueString(), state.Port.ValueInt64(), state.UserName.ValueString(), state.Account.ValueString(), role)
 	conn.DropAccount(ctx, &resp.Diagnostics)
 }

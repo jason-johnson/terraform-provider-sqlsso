@@ -55,30 +55,35 @@ func (c postgreConnection) CreateAccount(ctx context.Context, diags *diag.Diagno
 
 	ctx = tflog.SetField(ctx, "account", c.account)
 	tflog.Debug(ctx, "Creating account..")
-	cmd := fmt.Sprintf(`pg_catalog.pgaadauth_create_principal("%s", false, false);`, c.account)
+	cmd := fmt.Sprintf(`select * from pg_catalog.pgaadauth_create_principal('%s', false, false);`, c.account)
 	Execute(ctx, c, diags, cmd)
 
-	// grant has to run on target
-	c.database = targetDatabase
+	if diags.HasError() {
+		return
+	}
 
 	tflog.Debug(ctx, "Account created, creating role..")
-	cmd = fmt.Sprintf(`GRANT %s TO "%s" WITH INHERIT TRUE;`, c.role, c.account)
+	cmd = fmt.Sprintf(`GRANT %s ON DATABASE %s TO "%s";`, c.role, targetDatabase, c.account)
 	Execute(ctx, c, diags, cmd)
 }
 
 func (c postgreConnection) DropAccount(ctx context.Context, diags *diag.Diagnostics) {
 
-	cmd := `DECLARE @sql nvarchar(max)
-			SET @sql = 'REVOKE ALL PRIVILEGES ON ALL TABLES IN SCHEMA public FROM ' + QUOTE_IDENT(@account)
-			EXEC (@sql)
-			SET @sql = 'REVOKE ALL PRIVILEGES ON ALL SEQUENCES IN SCHEMA public FROM ' + QUOTE_IDENT(@account)
-			EXEC (@sql)
-			SET @sql = 'REVOKE ALL PRIVILEGES ON ALL FUNCTIONS IN SCHEMA public FROM ' + QUOTE_IDENT(@account)
-			EXEC (@sql)
-			SET @sql = 'DROP USER ' + QUOTE_IDENT(@account)
-			EXEC (@sql)`
+	targetDatabase := c.database
+	c.database = "postgres"
 
-	Execute(ctx, c, diags, cmd, sql.Named("account", c.account))
+	tflog.Debug(ctx, "Revoking role..")
+	cmd := fmt.Sprintf(`REVOKE %s ON DATABASE %s FROM "%s";`, c.role, targetDatabase, c.account)
+	Execute(ctx, c, diags, cmd)
+
+	if diags.HasError() {
+		return
+	}
+
+	ctx = tflog.SetField(ctx, "account", c.account)
+	tflog.Debug(ctx, "dropping account..")
+	cmd = fmt.Sprintf(`drop user "%s";`, c.account)
+	Execute(ctx, c, diags, cmd)
 }
 
 func (c postgreConnection) Id() string {
