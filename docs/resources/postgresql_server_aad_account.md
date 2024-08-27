@@ -4,14 +4,11 @@ page_title: "sqlsso_postgresql_server_aad_account Resource - terraform-provider-
 subcategory: ""
 description: |-
   sqlsso_postgresql_server_aad_account enables AAD authentication for an Azure Postgresql Flexible.
-  For this to work terraform should be run for the configured Active Directory Admin account, not the SQL Server Admin as AD users can only be administered with the AD Admin account.
 ---
 
 # sqlsso_postgresql_server_aad_account (Resource)
 
 `sqlsso_postgresql_server_aad_account` enables AAD authentication for an Azure Postgresql Flexible.
-
-For this to work terraform should be run for the configured **Active Directory Admin** account, not the SQL Server Admin as AD users can only be administered with the AD Admin account.
 
 ## Example Usage
 
