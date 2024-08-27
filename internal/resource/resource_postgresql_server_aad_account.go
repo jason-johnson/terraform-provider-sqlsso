@@ -19,39 +19,37 @@ import (
 
 // Ensure the implementation satisfies the expected interfaces.
 var (
-	_ resource.Resource = &mssqlResource{}
+	_ resource.Resource = &postgreResource{}
 )
 
-var accountTypeMap = map[string]string{"user": "E", "group": "X"}
-var mssqlRoleMap = map[string]string{"owner": "db_owner", "reader": "db_datareader", "writer": "db_datawriter"}
+var pglRoleMap = map[string]string{"owner": "ALL PRIVILEGES", "reader": "pg_read_all_data", "writer": "pg_write_all_data"}
 
 // New is a helper function to simplify the provider implementation.
-func NewMssql() resource.Resource {
-	return &mssqlResource{}
+func NewPostgre() resource.Resource {
+	return &postgreResource{}
 }
 
-type mssqlResource struct {
+type postgreResource struct {
 }
 
-type mssqlResourceModel struct {
-	ID          types.String `tfsdk:"id"`
-	SqlServer   types.String `tfsdk:"sql_server_dns"`
-	Database    types.String `tfsdk:"database"`
-	Account     types.String `tfsdk:"account_name"`
-	Port        types.Int64  `tfsdk:"port"`
-	ObjectId    types.String `tfsdk:"object_id"`
-	AccountType types.String `tfsdk:"account_type"`
-	Role        types.String `tfsdk:"role"`
+type postgreResourceModel struct {
+	ID        types.String `tfsdk:"id"`
+	SqlServer types.String `tfsdk:"sql_server_dns"`
+	Database  types.String `tfsdk:"database"`
+	UserName  types.String `tfsdk:"user_name"`
+	Account   types.String `tfsdk:"account_name"`
+	Port      types.Int64  `tfsdk:"port"`
+	Role      types.String `tfsdk:"role"`
 }
 
-func (d *mssqlResource) Metadata(_ context.Context, req resource.MetadataRequest, resp *resource.MetadataResponse) {
-	resp.TypeName = req.ProviderTypeName + "_mssql_server_aad_account"
+func (d *postgreResource) Metadata(_ context.Context, req resource.MetadataRequest, resp *resource.MetadataResponse) {
+	resp.TypeName = req.ProviderTypeName + "_postgresql_server_aad_account"
 }
 
 // Schema defines the schema for the resource.
-func (d *mssqlResource) Schema(_ context.Context, _ resource.SchemaRequest, resp *resource.SchemaResponse) {
+func (d *postgreResource) Schema(_ context.Context, _ resource.SchemaRequest, resp *resource.SchemaResponse) {
 	resp.Schema = schema.Schema{
-		Description: "`sqlsso_mssql_server_aad_account` enables AAD authentication for an Azure MS SQL server.\n\nFor this to work terraform should be run for the configured **Active Directory Admin** account, not the SQL Server Admin as AD users can only be administered with the AD Admin account. ",
+		Description: "`sqlsso_postgresql_server_aad_account` enables AAD authentication for an Azure Postgresql Flexible.",
 		Attributes: map[string]schema.Attribute{
 			"id": schema.StringAttribute{
 				Computed: true,
@@ -73,6 +71,13 @@ func (d *mssqlResource) Schema(_ context.Context, _ resource.SchemaRequest, resp
 					stringplanmodifier.RequiresReplace(),
 				},
 			},
+			userNameProp: schema.StringAttribute{
+				Description: "The name of the account that will log into the database (not currently infered from connection).",
+				Required:    true,
+				PlanModifiers: []planmodifier.String{
+					stringplanmodifier.RequiresReplace(),
+				},
+			},
 			accountNameProp: schema.StringAttribute{
 				Description: "The name of the account to add to the database.",
 				Required:    true,
@@ -84,28 +89,9 @@ func (d *mssqlResource) Schema(_ context.Context, _ resource.SchemaRequest, resp
 				Description: "Port to connect to the database server.",
 				Optional:    true,
 				Computed:    true,
-				Default:     int64default.StaticInt64(1433),
+				Default:     int64default.StaticInt64(5432),
 				PlanModifiers: []planmodifier.Int64{
 					int64planmodifier.RequiresReplace(),
-				},
-			},
-			objectIdProp: schema.StringAttribute{
-				Description: "Azure AD object ID for the account.",
-				Required:    true,
-				PlanModifiers: []planmodifier.String{
-					stringplanmodifier.RequiresReplace(),
-				},
-			},
-			accountTypeProp: schema.StringAttribute{
-				Description: "Type of account to create: either a single user or an AAD group.",
-				Optional:    true,
-				Computed:    true,
-				Default:     stringdefault.StaticString("user"),
-				PlanModifiers: []planmodifier.String{
-					stringplanmodifier.RequiresReplace(),
-				},
-				Validators: []validator.String{
-					stringInMap(accountTypeMap),
 				},
 			},
 			roleProp: schema.StringAttribute{
@@ -117,14 +103,14 @@ func (d *mssqlResource) Schema(_ context.Context, _ resource.SchemaRequest, resp
 					stringplanmodifier.RequiresReplace(),
 				},
 				Validators: []validator.String{
-					stringInMap(mssqlRoleMap),
+					stringInMap(pglRoleMap),
 				},
 			},
 		}}
 }
 
-func (d *mssqlResource) Read(ctx context.Context, req resource.ReadRequest, resp *resource.ReadResponse) {
-	var state mssqlResourceModel
+func (d *postgreResource) Read(ctx context.Context, req resource.ReadRequest, resp *resource.ReadResponse) {
+	var state postgreResourceModel
 	resp.Diagnostics.Append(req.State.Get(ctx, &state)...)
 	if resp.Diagnostics.HasError() {
 		return
@@ -135,29 +121,22 @@ func (d *mssqlResource) Read(ctx context.Context, req resource.ReadRequest, resp
 	resp.Diagnostics.Append(resp.State.Set(ctx, &state)...)
 }
 
-func (d *mssqlResource) Create(ctx context.Context, req resource.CreateRequest, resp *resource.CreateResponse) {
-	var plan mssqlResourceModel
+func (d *postgreResource) Create(ctx context.Context, req resource.CreateRequest, resp *resource.CreateResponse) {
+	var plan postgreResourceModel
 	resp.Diagnostics.Append(req.Plan.Get(ctx, &plan)...)
 	if resp.Diagnostics.HasError() {
 		return
 	}
 
-	accountType, accOk := accountTypeMap[plan.AccountType.ValueString()]
-	role, roleOk := mssqlRoleMap[plan.Role.ValueString()]
-
-	if !accOk {
-		resp.Diagnostics.AddError("internal error", fmt.Sprintf("Invalid account type %q", accountType))
-	}
+	role, roleOk := pglRoleMap[plan.Role.ValueString()]
 
 	if !roleOk {
 		resp.Diagnostics.AddError("internal error", fmt.Sprintf("Invalid role %q", role))
-	}
-
-	if !accOk || !roleOk {
 		return
 	}
 
-	conn := ssoSql.CreateMssqlConnection(plan.SqlServer.ValueString(), plan.Database.ValueString(), plan.Port.ValueInt64(), plan.Account.ValueString(), plan.ObjectId.ValueString(), accountType, role)
+	conn := ssoSql.CreatePostgreConnection(plan.SqlServer.ValueString(), plan.Database.ValueString(), plan.Port.ValueInt64(), plan.UserName.ValueString(), plan.Account.ValueString(), role)
+
 	conn.CreateAccount(ctx, &resp.Diagnostics)
 
 	if resp.Diagnostics.HasError() {
@@ -170,17 +149,24 @@ func (d *mssqlResource) Create(ctx context.Context, req resource.CreateRequest, 
 	resp.Diagnostics.Append(resp.State.Set(ctx, &plan)...)
 }
 
-func (d *mssqlResource) Update(ctx context.Context, req resource.UpdateRequest, resp *resource.UpdateResponse) {
+func (d *postgreResource) Update(ctx context.Context, req resource.UpdateRequest, resp *resource.UpdateResponse) {
 	// Noop (any change requires delete and create)
 }
 
-func (d *mssqlResource) Delete(ctx context.Context, req resource.DeleteRequest, resp *resource.DeleteResponse) {
-	var state mssqlResourceModel
+func (d *postgreResource) Delete(ctx context.Context, req resource.DeleteRequest, resp *resource.DeleteResponse) {
+	var state postgreResourceModel
 	resp.Diagnostics.Append(req.State.Get(ctx, &state)...)
 	if resp.Diagnostics.HasError() {
 		return
 	}
 
-	conn := ssoSql.CreateMssqlConnection(state.SqlServer.ValueString(), state.Database.ValueString(), state.Port.ValueInt64(), state.Account.ValueString(), state.ObjectId.ValueString(), state.AccountType.ValueString(), state.Role.ValueString())
+	role, roleOk := pglRoleMap[state.Role.ValueString()]
+
+	if !roleOk {
+		resp.Diagnostics.AddError("internal error", fmt.Sprintf("Invalid role %q", role))
+		return
+	}
+
+	conn := ssoSql.CreatePostgreConnection(state.SqlServer.ValueString(), state.Database.ValueString(), state.Port.ValueInt64(), state.UserName.ValueString(), state.Account.ValueString(), role)
 	conn.DropAccount(ctx, &resp.Diagnostics)
 }
