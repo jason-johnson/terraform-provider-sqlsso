@@ -4,7 +4,7 @@ go 1.21
 toolchain go1.22.8
 
 require (
-	github.com/Azure/go-autorest/autorest/azure/cli v0.4.6
+	github.com/Azure/go-autorest/autorest/azure/cli v0.4.7
 	github.com/hashicorp/terraform-plugin-docs v0.20.1
 	github.com/hashicorp/terraform-plugin-framework v1.13.0
 	github.com/hashicorp/terraform-plugin-go v0.26.0
