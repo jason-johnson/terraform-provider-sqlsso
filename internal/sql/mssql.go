@@ -5,10 +5,9 @@ import (
 	"database/sql"
 	"fmt"
 
-	"github.com/Azure/go-autorest/autorest/azure/cli"
 	"github.com/hashicorp/terraform-plugin-framework/diag"
 	"github.com/hashicorp/terraform-plugin-log/tflog"
-	mssql "github.com/microsoft/go-mssqldb"
+	"github.com/microsoft/go-mssqldb/azuread"
 )
 
 type mssqlConnection struct {
@@ -34,29 +33,11 @@ func CreateMssqlConnection(sqlServer string, database string, port int64, accoun
 }
 
 func (c mssqlConnection) getConnectionString() string {
-	return fmt.Sprintf("Server=%v;Database=%v;Port=%v;", c.sqlServer, c.database, c.port)
-}
-
-func getTokenProvider() (func() (string, error), error) {
-	token, err := cli.GetTokenFromCLI("https://database.windows.net/")
-
-	return func() (string, error) {
-		return token.AccessToken, nil
-	}, err
+	return fmt.Sprintf("sqlserver://%s?database=%s&fedauth=ActiveDirectoryDefault", c.sqlServer, c.database)
 }
 
 func (c mssqlConnection) createConnection() (*sql.DB, error) {
-	tokenProvider, err := getTokenProvider()
-	if err != nil {
-		return nil, err
-	}
-
-	connector, err := mssql.NewAccessTokenConnector(c.getConnectionString(), tokenProvider)
-	if err != nil {
-		return nil, err
-	}
-
-	return sql.OpenDB(connector), nil
+	return sql.Open(azuread.DriverName, c.getConnectionString())
 }
 
 func (c mssqlConnection) CreateAccount(ctx context.Context, diags *diag.Diagnostics) {
