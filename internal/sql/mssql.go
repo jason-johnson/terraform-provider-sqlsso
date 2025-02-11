@@ -36,7 +36,7 @@ func (c mssqlConnection) getConnectionString() string {
 	return fmt.Sprintf("sqlserver://%s?database=%s&fedauth=ActiveDirectoryDefault", c.sqlServer, c.database)
 }
 
-func (c mssqlConnection) createConnection() (*sql.DB, error) {
+func (c mssqlConnection) createConnection(ctx context.Context) (*sql.DB, error) {
 	return sql.Open(azuread.DriverName, c.getConnectionString())
 }
 

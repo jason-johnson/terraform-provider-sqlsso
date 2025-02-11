@@ -6,7 +6,8 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/Azure/go-autorest/autorest/azure/cli"
+	"github.com/Azure/azure-sdk-for-go/sdk/azcore/policy"
+	"github.com/Azure/azure-sdk-for-go/sdk/azidentity"
 	"github.com/hashicorp/terraform-plugin-framework/diag"
 	"github.com/hashicorp/terraform-plugin-log/tflog"
 	_ "github.com/lib/pq"
@@ -36,13 +37,19 @@ func (c postgreConnection) getConnectionString() string {
 	return fmt.Sprintf("postgres://%v:{password}@%v:%v/%v?sslmode=require", c.user, c.sqlServer, c.port, c.database)
 }
 
-func (c postgreConnection) createConnection() (*sql.DB, error) {
-	token, err := cli.GetTokenFromCLI("https://ossrdbms-aad.database.windows.net")
+func (c postgreConnection) createConnection(ctx context.Context) (*sql.DB, error) {
+	cred, err := azidentity.NewDefaultAzureCredential(nil)
 	if err != nil {
 		return nil, err
 	}
 
-	connStr := strings.Replace(c.getConnectionString(), "{password}", token.AccessToken, 1)
+	token, err := cred.GetToken(ctx, policy.TokenRequestOptions{Scopes: []string{"https://ossrdbms-aad.database.windows.net"}})
+
+	if err != nil {
+		return nil, err
+	}
+
+	connStr := strings.Replace(c.getConnectionString(), "{password}", token.Token, 1)
 
 	return sql.Open("postgres", connStr)
 }

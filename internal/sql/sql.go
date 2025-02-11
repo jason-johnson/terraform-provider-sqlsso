@@ -14,11 +14,11 @@ type SqlConnection interface {
 	DropAccount(ctx context.Context, diags *diag.Diagnostics)
 	Id() string
 	getConnectionString() string
-	createConnection() (*sql.DB, error)
+	createConnection(context.Context) (*sql.DB, error)
 }
 
 func Execute(ctx context.Context, c SqlConnection, diags *diag.Diagnostics, command string, args ...interface{}) {
-	conn, err := c.createConnection()
+	conn, err := c.createConnection(ctx)
 	if err != nil {
 		diags.AddError("error", err.Error())
 		return
