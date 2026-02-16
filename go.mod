@@ -10,7 +10,7 @@ require (
 	github.com/hashicorp/terraform-plugin-go v0.29.0
 	github.com/hashicorp/terraform-plugin-log v0.10.0
 	github.com/hashicorp/terraform-plugin-testing v1.14.0
-	github.com/lib/pq v1.10.9
+	github.com/lib/pq v1.11.2
 	github.com/microsoft/go-mssqldb v1.9.6
 	golang.org/x/exp v0.0.0-20250207012021-f9890c6ad9f3
 )
